@@ -16,9 +16,8 @@
 import logging
 import struct
 import time
-import json
-from ryu import cfg
 
+from ryu import cfg
 from ryu.topology import event
 from ryu.base import app_manager
 from ryu.controller import ofp_event
@@ -39,14 +38,12 @@ from ryu.ofproto import ofproto_v1_2
 from ryu.ofproto import ofproto_v1_3
 from ryu.ofproto import ofproto_v1_4
 
-
 LOG = logging.getLogger(__name__)
-
 
 CONF = cfg.CONF
 
 CONF.register_cli_opts([
-    cfg.BoolOpt('observe-links', default=False,
+    cfg.BoolOpt('observe-links', default=True,
                 help='observe link discovery events.'),
     cfg.BoolOpt('install-lldp-flow', default=True,
                 help='link discovery: explicitly install flow entry '
@@ -75,7 +72,7 @@ class Port(object):
 
     def is_down(self):
         return (self._state & self._ofproto.OFPPS_LINK_DOWN) > 0 \
-            or (self._config & self._ofproto.OFPPC_PORT_DOWN) > 0
+               or (self._config & self._ofproto.OFPPC_PORT_DOWN) > 0
 
     def is_live(self):
         # NOTE: OF1.2 has OFPPS_LIVE state
@@ -86,7 +83,7 @@ class Port(object):
         return {'dpid': dpid_to_str(self.dpid),
                 'port_no': port_no_to_str(self.port_no),
                 'hw_addr': self.hw_addr,
-                'name': self.name.rstrip('\0')}
+                'name': str(self.name, 'ASCII').rstrip('\0')}
 
     # for Switch.del_port()
     def __eq__(self, other):
@@ -101,7 +98,7 @@ class Port(object):
     def __str__(self):
         LIVE_MSG = {False: 'DOWN', True: 'LIVE'}
         return 'Port<dpid=%s, port_no=%s, %s>' % \
-            (self.dpid, self.port_no, LIVE_MSG[self.is_live()])
+               (self.dpid, self.port_no, LIVE_MSG[self.is_live()])
 
 
 class Switch(object):
@@ -205,10 +202,10 @@ class HostState(dict):
         if not host:
             return
 
-        if ip_v4 != None and ip_v4 not in host.ipv4:
+        if ip_v4 is not None and ip_v4 not in host.ipv4:
             host.ipv4.append(ip_v4)
 
-        if ip_v6 != None and ip_v6 not in host.ipv6:
+        if ip_v6 is not None and ip_v6 not in host.ipv6:
             host.ipv6.append(ip_v6)
 
     def get_by_dpid(self, dpid):
@@ -264,7 +261,7 @@ class PortData(object):
 
     def __str__(self):
         return 'PortData<live=%s, timestamp=%s, sent=%d>' \
-            % (not self.is_down, self.timestamp, self.sent)
+               % (not self.is_down, self.timestamp, self.sent)
 
 
 class PortDataState(dict):
@@ -276,9 +273,8 @@ class PortDataState(dict):
 
     def __init__(self):
         super(PortDataState, self).__init__()
-        self._root = root = []          # sentinel node
-        root[:] = [root, root, None]    # [_PREV, _NEXT, _KEY]
-                                        # doubly linked list
+        self._root = root = []  # sentinel node
+        root[:] = [root, root, None]  # [_PREV, _NEXT, _KEY] doubly linked list
         self._map = {}
 
     def _remove_key(self, key):
@@ -360,11 +356,17 @@ class PortDataState(dict):
         dict.clear(self)
 
     def items(self):
-        'od.items() -> list of (key, value) pairs in od'
+        """
+        od.items() -> list of (key, value) pairs in od
+        :return:
+        """
         return [(key, self[key]) for key in self]
 
     def iteritems(self):
-        'od.iteritems -> an iterator over the (key, value) pairs in od'
+        """
+        od.iteritems -> an iterator over the (key, value) pairs in od'
+        :return:
+        """
         for k in self:
             yield (k, self[k])
 
@@ -376,7 +378,7 @@ class LinkState(dict):
         self._map = {}
 
     def get_peer(self, src):
-        return self._map.get(src, None)
+        return self._map.get(src)
 
     def update_link(self, src, dst):
         link = Link(src, dst)
@@ -420,7 +422,7 @@ class LLDPPacket(object):
     CHASSIS_ID_PREFIX_LEN = len(CHASSIS_ID_PREFIX)
     CHASSIS_ID_FMT = CHASSIS_ID_PREFIX + '%s'
 
-    PORT_ID_STR = '!I'      # uint32_t
+    PORT_ID_STR = '!I'  # uint32_t
     PORT_ID_SIZE = 4
 
     class LLDPUnknownFormat(RyuException):
@@ -439,7 +441,7 @@ class LLDPPacket(object):
         tlv_chassis_id = lldp.ChassisID(
             subtype=lldp.ChassisID.SUB_LOCALLY_ASSIGNED,
             chassis_id=(LLDPPacket.CHASSIS_ID_FMT %
-                        dpid_to_str(dpid)).encode('ascii'))
+                        dpid_to_str(dpid)).encode('ASCII'))
 
         tlv_port_id = lldp.PortID(subtype=lldp.PortID.SUB_PORT_COMPONENT,
                                   port_id=struct.pack(
@@ -460,10 +462,10 @@ class LLDPPacket(object):
     def lldp_parse(data):
         pkt = packet.Packet(data)
         i = iter(pkt)
-        eth_pkt = i.next()
+        eth_pkt = next(i)
         assert type(eth_pkt) == ethernet.ethernet
 
-        lldp_pkt = i.next()
+        lldp_pkt = next(i)
         if type(lldp_pkt) != lldp.lldp:
             raise LLDPPacket.LLDPUnknownFormat()
 
@@ -472,7 +474,7 @@ class LLDPPacket(object):
             raise LLDPPacket.LLDPUnknownFormat(
                 msg='unknown chassis id subtype %d' % tlv_chassis_id.subtype)
         chassis_id = tlv_chassis_id.chassis_id
-        if not chassis_id.startswith(LLDPPacket.CHASSIS_ID_PREFIX):
+        if not chassis_id.startswith(LLDPPacket.CHASSIS_ID_PREFIX.encode('ASCII')):
             raise LLDPPacket.LLDPUnknownFormat(
                 msg='unknown chassis id format %s' % chassis_id)
         src_dpid = str_to_dpid(chassis_id[LLDPPacket.CHASSIS_ID_PREFIX_LEN:])
@@ -485,7 +487,7 @@ class LLDPPacket(object):
         if len(port_id) != LLDPPacket.PORT_ID_SIZE:
             raise LLDPPacket.LLDPUnknownFormat(
                 msg='unknown port id %d' % port_id)
-        (src_port_no, ) = struct.unpack(LLDPPacket.PORT_ID_STR, port_id)
+        (src_port_no,) = struct.unpack(LLDPPacket.PORT_ID_STR, port_id)
 
         return src_dpid, src_port_no
 
@@ -512,11 +514,11 @@ class Switches(app_manager.RyuApp):
         super(Switches, self).__init__(*args, **kwargs)
 
         self.name = 'switches'
-        self.dps = {}                 # datapath_id => Datapath class
-        self.port_state = {}          # datapath_id => ports
+        self.dps = {}  # datapath_id => Datapath class
+        self.port_state = {}  # datapath_id => ports
         self.ports = PortDataState()  # Port class -> PortData class
-        self.links = LinkState()      # Link class -> timestamp
-        self.hosts = HostState()      # mac address -> Host class list
+        self.links = LinkState()  # Link class -> timestamp
+        self.hosts = HostState()  # mac address -> Host class list
         self.is_active = True
 
         self.link_discovery = self.CONF.observe_links
@@ -591,8 +593,7 @@ class Switches(app_manager.RyuApp):
 
         return True
 
-    @set_ev_cls(ofp_event.EventOFPStateChange,
-                [MAIN_DISPATCHER, DEAD_DISPATCHER])
+    @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def state_change_handler(self, ev):
         dp = ev.datapath
         assert dp is not None
@@ -623,7 +624,7 @@ class Switches(app_manager.RyuApp):
                 if ofproto.OFP_VERSION == ofproto_v1_0.OFP_VERSION:
                     rule = nx_match.ClsRule()
                     rule.set_dl_dst(addrconv.mac.text_to_bin(
-                                    lldp.LLDP_MAC_NEAREST_BRIDGE))
+                        lldp.LLDP_MAC_NEAREST_BRIDGE))
                     rule.set_dl_type(ETH_TYPE_LLDP)
                     actions = [ofproto_parser.OFPActionOutput(
                         ofproto.OFPP_CONTROLLER, self.LLDP_PACKET_LEN)]
@@ -642,7 +643,7 @@ class Switches(app_manager.RyuApp):
                                                       ofproto.OFPCML_NO_BUFFER
                                                       )]
                     inst = [parser.OFPInstructionActions(
-                            ofproto.OFPIT_APPLY_ACTIONS, actions)]
+                        ofproto.OFPIT_APPLY_ACTIONS, actions)]
                     mod = parser.OFPFlowMod(datapath=dp, match=match,
                                             idle_timeout=0, hard_timeout=0,
                                             instructions=inst,
@@ -686,9 +687,7 @@ class Switches(app_manager.RyuApp):
         ofpport = msg.desc
 
         if reason == dp.ofproto.OFPPR_ADD:
-            # LOG.debug('A port was added.' +
-            #           '(datapath id = %s, port number = %s)',
-            #           dp.id, ofpport.port_no)
+            LOG.debug('A port was added. (datapath id = %s, port number = %s)', dp.id, ofpport.port_no)
             self.port_state[dp.id].add(ofpport.port_no, ofpport)
             self.send_event_to_observers(
                 event.EventPortAdd(Port(dp.id, dp.ofproto, ofpport)))
@@ -702,9 +701,7 @@ class Switches(app_manager.RyuApp):
                 self.lldp_event.set()
 
         elif reason == dp.ofproto.OFPPR_DELETE:
-            # LOG.debug('A port was deleted.' +
-            #           '(datapath id = %s, port number = %s)',
-            #           dp.id, ofpport.port_no)
+            LOG.debug('A port was deleted. (datapath id = %s, port number = %s)', dp.id, ofpport.port_no)
             self.port_state[dp.id].remove(ofpport.port_no)
             self.send_event_to_observers(
                 event.EventPortDelete(Port(dp.id, dp.ofproto, ofpport)))
@@ -749,8 +746,7 @@ class Switches(app_manager.RyuApp):
         elif dp.ofproto.OFP_VERSION >= ofproto_v1_2.OFP_VERSION:
             dp.send_packet_out(buffer_id, msg.match['in_port'], [])
         else:
-            LOG.error('cannot drop_packet. unsupported version. %x',
-                      dp.ofproto.OFP_VERSION)
+            LOG.error('cannot drop_packet. unsupported version. %x', dp.ofproto.OFP_VERSION)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def lldp_packet_in_handler(self, ev):
@@ -873,7 +869,7 @@ class Switches(app_manager.RyuApp):
             port_data = self.ports.lldp_sent(port)
         except KeyError as e:
             # ports can be modified during our sleep in self.lldp_loop()
-            # LOG.debug('send_lldp: KeyError %s', e)
+            LOG.debug('send_lldp: KeyError %s', e)
             return
         if port_data.is_down:
             return
@@ -924,10 +920,10 @@ class Switches(app_manager.RyuApp):
                 self.send_lldp_packet(port)
             for port in ports:
                 self.send_lldp_packet(port)
-                hub.sleep(self.LLDP_SEND_GUARD)      # don't burst
+                hub.sleep(self.LLDP_SEND_GUARD)  # don't burst
 
             if timeout is not None and ports:
-                timeout = 0     # We have already slept
+                timeout = 0  # We have already slept
             # LOG.debug('lldp sleep %s', timeout)
             self.lldp_event.wait(timeout=timeout)
 
