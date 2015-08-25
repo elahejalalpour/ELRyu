@@ -46,9 +46,9 @@ class Stream(object):
     __S_DISCONNECTED = 2
 
     # Kinds of events that one might wait for.
-    W_CONNECT = 0               # Connect complete (success or failure).
-    W_RECV = 1                  # Data received.
-    W_SEND = 2                  # Send buffer room available.
+    W_CONNECT = 0  # Connect complete (success or failure).
+    W_RECV = 1  # Data received.
+    W_SEND = 2  # Send buffer room available.
 
     _SOCKET_METHODS = {}
 
@@ -119,7 +119,7 @@ class Stream(object):
         raise NotImplementedError("This method must be overrided by subclass")
 
     @staticmethod
-    def open_block((error, stream)):
+    def open_block(error_stream):
         """Blocks until a Stream completes its connection attempt, either
         succeeding or failing.  (error, stream) should be the tuple returned by
         Stream.open().  Returns a tuple of the same form.
@@ -127,6 +127,7 @@ class Stream(object):
         Typical usage:
         error, stream = Stream.open_block(Stream.open("unix:/tmp/socket"))"""
 
+        error, stream = error_stream
         if not error:
             while True:
                 error = stream.connect()
@@ -196,7 +197,7 @@ class Stream(object):
 
         try:
             return (0, self.socket.recv(n))
-        except socket.error, e:
+        except socket.error as e:
             return (ovs.socket_util.get_exception_errno(e), "")
 
     def send(self, buf):
@@ -218,7 +219,7 @@ class Stream(object):
 
         try:
             return self.socket.send(buf)
-        except socket.error, e:
+        except socket.error as e:
             return -ovs.socket_util.get_exception_errno(e)
 
     def run(self):
@@ -289,7 +290,7 @@ class PassiveStream(object):
 
         try:
             sock.listen(10)
-        except socket.error, e:
+        except socket.error as e:
             vlog.err("%s: listen: %s" % (name, os.strerror(e.error)))
             sock.close()
             return e.error, None
@@ -317,7 +318,7 @@ class PassiveStream(object):
                 sock, addr = self.socket.accept()
                 ovs.socket_util.set_nonblocking(sock)
                 return 0, Stream(sock, "unix:%s" % addr, 0)
-            except socket.error, e:
+            except socket.error as e:
                 error = ovs.socket_util.get_exception_errno(e)
                 if error != errno.EAGAIN:
                     # XXX rate-limit
@@ -346,8 +347,10 @@ class UnixStream(Stream):
     @staticmethod
     def _open(suffix, dscp):
         connect_path = suffix
-        return  ovs.socket_util.make_unix_socket(socket.SOCK_STREAM,
-                                                 True, None, connect_path)
+        return ovs.socket_util.make_unix_socket(socket.SOCK_STREAM,
+                                                True, None, connect_path)
+
+
 Stream.register_method("unix", UnixStream)
 
 
@@ -359,4 +362,6 @@ class TCPStream(Stream):
         if not error:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         return error, sock
+
+
 Stream.register_method("tcp", TCPStream)

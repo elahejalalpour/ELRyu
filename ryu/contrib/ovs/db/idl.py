@@ -186,7 +186,7 @@ class Idl:
                     self._monitor_request_id = None
                     self.__clear()
                     self.__parse_update(msg.result)
-                except error.Error, e:
+                except error.Error as e:
                     vlog.err("%s: parse error in received schema: %s"
                               % (self._session.get_name(), e))
                     self.__error()
@@ -332,7 +332,7 @@ class Idl:
     def __parse_update(self, update):
         try:
             self.__do_parse_update(update)
-        except error.Error, e:
+        except error.Error as e:
             vlog.err("%s: error parsing update: %s"
                      % (self._session.get_name(), e))
 
@@ -424,7 +424,7 @@ class Idl:
 
             try:
                 datum = ovs.db.data.Datum.from_json(column.type, datum_json)
-            except error.Error, e:
+            except error.Error as e:
                 # XXX rate-limit
                 vlog.warn("error parsing column %s in table %s: %s"
                           % (column_name, table.name, e))
@@ -563,7 +563,7 @@ class Row(object):
         try:
             datum = ovs.db.data.Datum.from_python(column.type, value,
                                                   _row_to_uuid)
-        except error.Error, e:
+        except error.Error as e:
             # XXX rate-limit
             vlog.err("attempting to write bad value to column %s (%s)"
                      % (column_name, e))
@@ -1136,7 +1136,7 @@ class Transaction(object):
         # __process_reply() already checked.
         mutate = ops[self._inc_index]
         count = mutate.get("count")
-        if not Transaction.__check_json_type(count, (int, long),
+        if not Transaction.__check_json_type(count, (int, int),
                                              '"mutate" reply "count"'):
             return False
         if count != 1:
@@ -1159,7 +1159,7 @@ class Transaction(object):
                                              '"select" reply row'):
             return False
         column = row.get(self._inc_column)
-        if not Transaction.__check_json_type(column, (int, long),
+        if not Transaction.__check_json_type(column, (int, int),
                                              '"select" reply inc column'):
             return False
         self._inc_new_value = column
