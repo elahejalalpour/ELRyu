@@ -1,5 +1,5 @@
-What's Ryu
-==========
+What's ELRyu
+============
 Ryu is a component-based software defined networking framework.
 
 Ryu provides software components with well defined API that make it
@@ -20,7 +20,7 @@ Installing Ryu is quite easy::
 
 If you prefer to install Ryu from the source code::
 
-   % git clone git://github.com/osrg/ryu.git
+   % git clone git://github.com/elahejalalpour/elryu.git
    % cd ryu; python ./setup.py install
 
 If you want to use Ryu with `OpenStack <http://openstack.org/>`_,
@@ -30,7 +30,7 @@ If you want to write your Ryu application, have a look at
 `Writing ryu application <http://ryu.readthedocs.org/en/latest/writing_ryu_app.html>`_ document.
 After writing your application, just type::
 
-   % ryu-manager yourapp.py
+   % ryu-manager your_app.py
 
 
 Optional Requirements
