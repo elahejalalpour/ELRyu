@@ -14,15 +14,15 @@ is fully written in Python3 based on Ryu.
 
 Quick Start
 ===========
-Installing Ryu is quite easy::
+Installing ELRyu is quite easy::
 
    % git clone git://github.com/elahejalalpour/elryu.git
-   % cd ryu; python3 ./setup.py install
+   % cd elryu; python3 ./setup.py install
 
-If you want to use Ryu with `OpenStack <http://openstack.org/>`_,
+If you want to use ELRyu with `OpenStack <http://openstack.org/>`_,
 please refer `networking-ofagent project <https://github.com/stackforge/networking-ofagent>`_.
 
-If you want to write your Ryu application, have a look at
+If you want to write your ELRyu application, have a look at
 `Writing ryu application <http://ryu.readthedocs.org/en/latest/writing_ryu_app.html>`_ document.
 After writing your application, just type::
 
@@ -32,7 +32,7 @@ After writing your application, just type::
 Optional Requirements
 =====================
 
-Some functionalities of ryu requires extra packages:
+Some functionalities of ELRyu requires extra packages:
 
 - OF-Config requires lxml
 - NETCONF requires paramiko
